@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRecoilValue } from 'recoil';
 import type { Dispatch, SetStateAction } from 'react';
 import { useLocalize, useNewConvo } from '~/hooks';
@@ -13,6 +13,20 @@ export default function MobileNav({
   const { newConversation } = useNewConvo(0);
   const conversation = useRecoilValue(store.conversationByIndex(0));
   const { title = 'New Chat' } = conversation || {};
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey && event.key === 'k') {
+        event.preventDefault();
+        newConversation();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [newConversation]);
 
   return (
     <div className="text-token-primary border-token-border-medium bg-token-surface-primary sticky top-0 z-10 flex min-h-[40px] items-center border-b bg-white dark:bg-gray-800 dark:text-white md:hidden">

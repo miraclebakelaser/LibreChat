@@ -1,6 +1,6 @@
 import copy from 'copy-to-clipboard';
 import { InfoIcon } from 'lucide-react';
-import React, { useRef, useState, RefObject } from 'react';
+import React, { useRef, useState, RefObject, useEffect, useCallback } from 'react';
 import Clipboard from '~/components/svg/Clipboard';
 import CheckMark from '~/components/svg/CheckMark';
 import cn from '~/utils/cn';
@@ -19,6 +19,36 @@ type CodeBlockProps = Pick<CodeBarProps, 'lang' | 'plugin' | 'error'> & {
 
 const CodeBar: React.FC<CodeBarProps> = React.memo(({ lang, codeRef, error, plugin = null }) => {
   const [isCopied, setIsCopied] = useState(false);
+
+  const copyCode = useCallback(() => {
+    const codeString = codeRef.current?.textContent;
+    if (codeString) {
+      setIsCopied(true);
+      copy(codeString);
+
+      setTimeout(() => {
+        setIsCopied(false);
+      }, 3000);
+    }
+  }, [codeRef]);
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.metaKey && event.shiftKey && event.key === ';') {
+        event.preventDefault();
+        copyCode();
+      }
+    },
+    [copyCode],
+  );
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
   return (
     <div className="relative flex items-center rounded-tl-md rounded-tr-md bg-gray-700 px-4 py-2 font-sans text-xs text-gray-200 dark:bg-gray-700">
       <span className="">{lang}</span>
@@ -27,17 +57,7 @@ const CodeBar: React.FC<CodeBarProps> = React.memo(({ lang, codeRef, error, plug
       ) : (
         <button
           className={cn('ml-auto flex gap-2', error ? 'h-4 w-4 items-start text-white/50' : '')}
-          onClick={async () => {
-            const codeString = codeRef.current?.textContent;
-            if (codeString) {
-              setIsCopied(true);
-              copy(codeString);
-
-              setTimeout(() => {
-                setIsCopied(false);
-              }, 3000);
-            }
-          }}
+          onClick={copyCode}
         >
           {isCopied ? (
             <>
