@@ -2,58 +2,58 @@
  * Insert text at the cursor position in a textarea.
  */
 export function insertTextAtCursor(element: HTMLTextAreaElement, textToInsert: string) {
-  element.focus();
-
-  // Use the browser's built-in undoable actions if possible
-  if (window.getSelection() && document.queryCommandSupported('insertText')) {
-    document.execCommand('insertText', false, textToInsert);
-  } else {
-    console.warn('insertTextAtCursor: document.execCommand is not supported');
-    const startPos = element.selectionStart;
-    const endPos = element.selectionEnd;
-    const beforeText = element.value.substring(0, startPos);
-    const afterText = element.value.substring(endPos);
-    element.value = beforeText + textToInsert + afterText;
-    element.selectionStart = element.selectionEnd = startPos + textToInsert.length;
-    const event = new Event('input', { bubbles: true });
-    element.dispatchEvent(event);
-  }
+  const { selectionStart, selectionEnd, value } = element;
+  const newValue = value.slice(0, selectionStart) + textToInsert + value.slice(selectionEnd);
+  element.value = newValue;
+  element.selectionStart = element.selectionEnd = selectionStart + textToInsert.length;
+  element.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 /**
- * Necessary resize helper for edge cases where paste doesn't update the container height.
- *
- 1) Resetting the height to 'auto' forces the component to recalculate height based on its current content
-
- 2) Forcing a reflow. Accessing offsetHeight will cause a reflow of the page,
-    ensuring that the reset height takes effect before resetting back to the scrollHeight.
-    This step is necessary because changes to the DOM do not instantly cause reflows.
-
- 3) Reseting back to scrollHeight reads and applies the ideal height for the current content dynamically
+ * Debounced resize helper for edge cases where paste doesn't update the container height.
  */
-export const forceResize = (textAreaRef: React.RefObject<HTMLTextAreaElement>) => {
-  if (!textAreaRef.current) {
-    return;
-  }
-  textAreaRef.current.style.height = 'auto';
-  textAreaRef.current.offsetHeight;
-  textAreaRef.current.style.height = `${textAreaRef.current.scrollHeight}px`;
-};
+export const forceResize = (() => {
+  let timeoutId: NodeJS.Timeout | null = null;
+
+  return (textAreaRef: React.RefObject<HTMLTextAreaElement>) => {
+    if (!textAreaRef.current) {
+      return;
+    }
+
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+
+    timeoutId = setTimeout(() => {
+      textAreaRef.current!.style.height = 'auto';
+      textAreaRef.current!.style.height = `${textAreaRef.current!.scrollHeight}px`;
+    }, 100);
+  };
+})();
 
 /**
- * Necessary undo event helper for edge cases where undoing pasted content leaves newlines filling the previous container height.
+ * Optimized undo event helper for edge cases where undoing pasted content leaves newlines filling the previous container height.
  */
 export const trimUndoneRange = (textAreaRef: React.RefObject<HTMLTextAreaElement>) => {
   if (!textAreaRef.current) {
     return;
   }
-  const { value, selectionStart, selectionEnd } = textAreaRef.current;
-  const afterCursor = value.substring(selectionEnd).trim();
-  if (afterCursor.length) {
-    return;
+
+  const { selectionStart, value } = textAreaRef.current;
+  let i = value.length - 1;
+
+  while (i >= selectionStart && /\s/.test(value[i])) {
+    i--;
   }
-  const beforeCursor = value.substring(0, selectionStart);
-  const newValue = beforeCursor + afterCursor;
-  textAreaRef.current.value = newValue;
+
+  textAreaRef.current.value = value.slice(0, i + 1);
   textAreaRef.current.setSelectionRange(selectionStart, selectionStart);
+};
+/**
+ * Resize the textarea based on its content on input event.
+ */
+export const resizeTextarea = (event: React.FormEvent<HTMLTextAreaElement>) => {
+  const textarea = event.currentTarget;
+  textarea.style.height = 'auto';
+  textarea.style.height = `${textarea.scrollHeight}px`;
 };

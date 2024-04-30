@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { QueryKeys } from 'librechat-data-provider';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,6 +29,20 @@ export default function DeleteButton({ conversationId, renaming, retainView, tit
 
     deleteConvoMutation.mutate({ conversationId, thread_id, source: 'button' });
   }, [conversationId, deleteConvoMutation, queryClient]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.metaKey && event.key === 'Backspace') {
+        confirmDelete();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [confirmDelete]);
 
   return (
     <Dialog>
